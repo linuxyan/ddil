@@ -4,7 +4,9 @@ diff docker images layers
 
 # build && install
 
-go build -o ddil ddil.go && mv ddil /usr/local/bin/
+CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o ddil ddil.go
+
+mv ddil /usr/local/bin/
 
 # Usage 
 
