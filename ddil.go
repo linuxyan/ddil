@@ -38,15 +38,20 @@ func main() {
         fmt.Printf("Old image: %s\n", image1URL)
         fmt.Printf("New image: %s\n", image2URL)
 
+        basePath := ".tmp/"
+        os.RemoveAll(basePath)
+
         // 拉取和解压第一个Docker镜像
-        extractDir1 := "extracted_image_old"
+        extractDir1 := basePath + "extracted_image_old"
+        os.MkdirAll(extractDir1, os.ModePerm)
         if err := pullAndExtractDockerImage(image1URL, extractDir1); err != nil {
                 fmt.Printf("Error pulling or extracting Docker image 1: %s\n", err)
                 return
         }
 
         // 拉取和解压第二个Docker镜像
-        extractDir2 := "extracted_image_new"
+        extractDir2 := basePath + "extracted_image_new"
+        os.MkdirAll(extractDir2, os.ModePerm)
         if err := pullAndExtractDockerImage(image2URL, extractDir2); err != nil {
                 fmt.Printf("Error pulling or extracting Docker image 2: %s\n", err)
                 return
@@ -65,11 +70,7 @@ func main() {
              return
         }
 
-        if err := os.RemoveAll(extractDir1); err != nil {
-                fmt.Printf("Failed to remove temporary dir: %v\n", err)
-        }
-
-        if err := os.RemoveAll(extractDir2); err != nil {
+        if err := os.RemoveAll(".tmp"); err != nil {
                 fmt.Printf("Failed to remove temporary dir: %v\n", err)
         }
 
@@ -191,11 +192,11 @@ func difflayers(dir1, dir2 string)  error {
         }
 
         existlayers, err := os.Create(filepath.Join(dir2, "existlayers"))
-	if err != nil {
-		fmt.Printf("Error creating existlayers file: %s\n", err)
-		return err
-	}
-	defer existlayers.Close()
+        if err != nil {
+                fmt.Printf("Error creating existlayers file: %s\n", err)
+                return err
+        }
+        defer existlayers.Close()
 
         for _, layer := range layersA {
                 if contains(layersB, layer) {
@@ -253,75 +254,75 @@ func contains(slice []string, str string) bool {
 
 
 func compressLayers(compressDir string, outputFileName string) error {
-	// Create the output tar.gz file
-	tarGzFile, err := os.Create(outputFileName)
-	if err != nil {
-		fmt.Printf("Error creating tar.gz file: %s\n", err)
-		return err
-	}
-	defer tarGzFile.Close()
+        // Create the output tar.gz file
+        tarGzFile, err := os.Create(outputFileName)
+        if err != nil {
+                fmt.Printf("Error creating tar.gz file: %s\n", err)
+                return err
+        }
+        defer tarGzFile.Close()
 
-	// Create the gzip writer
-	gzipWriter := gzip.NewWriter(tarGzFile)
-	defer gzipWriter.Close()
+        // Create the gzip writer
+        gzipWriter := gzip.NewWriter(tarGzFile)
+        defer gzipWriter.Close()
 
-	// Create the tar writer
-	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
+        // Create the tar writer
+        tarWriter := tar.NewWriter(gzipWriter)
+        defer tarWriter.Close()
 
-	// Walk through the source directory and add all its contents to the tar.gz
-	err = filepath.Walk(compressDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+        // Walk through the source directory and add all its contents to the tar.gz
+        err = filepath.Walk(compressDir, func(path string, info os.FileInfo, err error) error {
+                if err != nil {
+                        return err
+                }
 
-		// Skip the root directory itself (A directory)
-		if path == compressDir {
-			return nil
-		}
+                // Skip the root directory itself (A directory)
+                if path == compressDir {
+                        return nil
+                }
 
-		// Create a tar header
-		relPath, err := filepath.Rel(compressDir, path)
-		if err != nil {
-			return err
-		}
+                // Create a tar header
+                relPath, err := filepath.Rel(compressDir, path)
+                if err != nil {
+                        return err
+                }
 
-		header, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return err
-		}
-		header.Name = relPath
+                header, err := tar.FileInfoHeader(info, "")
+                if err != nil {
+                        return err
+                }
+                header.Name = relPath
 
-		// Write the tar header
-		if err := tarWriter.WriteHeader(header); err != nil {
-			return err
-		}
+                // Write the tar header
+                if err := tarWriter.WriteHeader(header); err != nil {
+                        return err
+                }
 
-		// If it's a file, copy the contents into the tar.gz
-		if !info.IsDir() {
-			file, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
+                // If it's a file, copy the contents into the tar.gz
+                if !info.IsDir() {
+                        file, err := os.Open(path)
+                        if err != nil {
+                                return err
+                        }
+                        defer file.Close()
 
-			_, err = io.Copy(tarWriter, file)
-			if err != nil {
-				return err
-			}
-		}
+                        _, err = io.Copy(tarWriter, file)
+                        if err != nil {
+                                return err
+                        }
+                }
 
-		return nil
-	})
+                return nil
+        })
 
-	if err != nil {
-		fmt.Printf("Error compressing directory: %s\n", err)
-		return err
-	}
+        if err != nil {
+                fmt.Printf("Error compressing directory: %s\n", err)
+                return err
+        }
 
         fmt.Println("Images compressed successfully.")
 
         return nil
 
-	
+
 }
